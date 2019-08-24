@@ -8,7 +8,7 @@ from sklearn.cluster import KMeans
 from torch.nn.modules.module import Module
 
 from model import Model
-from loss import loss
+from loss import loss, AverageMeter
 
 
 from Generator import HandWrtng
@@ -28,7 +28,10 @@ def save_ckpt(loss, net, epoch):
 
 def train(model, data, optimizer, epoch, args):
 	lf, lg, lD1, lD2 = (0,0,0,0)
-	
+	avg_losslf = AverageMeter()
+	avg_losslg = AverageMeter()
+	avg_lossld1 = AverageMeter()
+	avg_lossld2 = AverageMeter()
 	for i in range(args.epoch_iters):
 
 		train_data = data[i]
@@ -36,7 +39,7 @@ def train(model, data, optimizer, epoch, args):
 
 		optimizer.zero_grad()
 
-		lf, lg, lD1, lD2 = loss(out[0], out[1], out[2], out[3], out[4], train_data[3], out[5], out[6], out[7], out[8], out[9])
+		lf, lg, ld1, ld2 = loss(out[0], out[1], out[2], out[3], out[4], train_data[3], out[5], out[6], out[7], out[8], out[9])
 
 		total_norm = 0
 		for p in model.parameters():
@@ -46,11 +49,16 @@ def train(model, data, optimizer, epoch, args):
 		if i%2:
 			lf.backward()
 			lg.backward()
-			lD2.backward()
+			ld2.backward()
 		else:
-			lD1.backward()
+			ld1.backward()
 
 		optimizer.step()
+
+		avg_losslf.update(lf)
+		avg_losslg.update(lg)
+		avg_lossld1.update(ld1)
+		avg_lossld2.update(ld2)
 
 		if i % args.disp_iter == 0:
 			print('Epoch: [{}][{}/{}],'
@@ -58,7 +66,7 @@ def train(model, data, optimizer, epoch, args):
                   ' LossF: {:.6f}, LossG: {:.6f},LossD1: {:.6f},LossD2: {:.6f}, Grads: {:.6f}'
                   .format(epoch, i, args.epoch_iters,
                           args.lr,
-                          lf, lg, lD1, lD2 , total_norm))
+                          avg_losslf.avg, avg_losslg.avg, avg_lossld1.avg, avg_lossld2.avg , total_norm))
 	save_ckpt((lf, lg, lD1, lD2), model, epoch)
 	
 
@@ -71,6 +79,8 @@ def create_optimizer(net, args):
 
 def main(args):
 	model = Model()
+	if args.load:
+		model.load_state_dict(torch.load("epoch3_20"))
 	mnist = MNIST(args.list_domainS, args.list_domainT, args.list_root)
 	optimizer = create_optimizer(model, args)
 	# xs = torch.randn(5, 3, 32 ,32)
@@ -98,6 +108,8 @@ if __name__ == '__main__':
                         default='mnist_m/mnist_m_train_labels.txt')
     parser.add_argument('--list_domainT',
                         default='mnist.txt')
+    parser.add_argument('--load',
+                        default=1)
     parser.add_argument('--list_root',
                         default='mnist_m/mnist_m_train')
     parser.add_argument('--gpus', default='0,1,2',
@@ -111,7 +123,7 @@ if __name__ == '__main__':
     parser.add_argument('--epoch_iters', default=6000, type=int,
                         help='iterations of each epoch (irrelevant to batch size)')
     parser.add_argument('--optim', default='SGD', help='optimizer')
-    parser.add_argument('--lr', default=3e-5, type=float, help='LR')
+    parser.add_argument('--lr', default=1e-5, type=float, help='LR')
     parser.add_argument('--lr_pow', default=0.9, type=float,
                         help='power in poly to drop LR')
     parser.add_argument('--beta1', default=0.9, type=float,

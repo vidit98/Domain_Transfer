@@ -55,7 +55,7 @@ def fashion_scatter(x, colors):
 def test(args):
 	no_of_test = 2000
 	model = Model()
-	model.load_state_dict(torch.load("epoch6_20"))
+	model.load_state_dict(torch.load("epoch2_20"))
 	model.eval()
 	mnist = MNIST_Test(args.list_domainS, args.list_domainT, args.list_root)
 	time_start = time.time()
