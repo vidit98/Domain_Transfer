@@ -13,6 +13,8 @@ from FTN import FTNet
 lambda1 = 0.3
 lambda2 = 0.03
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -59,7 +61,6 @@ class NpairLoss(nn.Module):
     def forward(self, anchor, positive, target):
         batch_size = anchor.size(0)
         target = target.view(target.size(0), 1)
-
         target = (target == torch.transpose(target, 0, 1)).float()
         target = target / torch.sum(target, dim=1, keepdim=True).float()
 
@@ -72,6 +73,7 @@ class NpairLoss(nn.Module):
         return loss
 
 def cross_entropy(logits, target, size_average=True):
+    
     if size_average:
         return torch.mean(torch.sum(- target * F.log_softmax(logits, -1), -1))
     else:
@@ -82,7 +84,7 @@ def cross_entropy(logits, target, size_average=True):
 
 def loss(f_Xt, f_Xs, f_Xsp, g_f_Xs, g_f_Xsp, target, D2_f_Xt, D2_f_Xs, D2_g_f_Xs, D1_f_Xt, D1_g_f_Xs):
 
-    npair = NpairLoss(l2_reg=0)
+    npair = NpairLoss(l2_reg=0).to(device)
     lf = 0.5*npair(f_Xs, f_Xsp, target)
     lf += 0.5*npair(g_f_Xs.detach(), g_f_Xsp.detach(), target)
     lf += lambda1*torch.mean(torch.log(D1_f_Xt.detach()))
@@ -94,6 +96,6 @@ def loss(f_Xt, f_Xs, f_Xsp, g_f_Xs, g_f_Xsp, target, D2_f_Xt, D2_f_Xs, D2_g_f_Xs
     lD1 = torch.mean(torch.log(D1_g_f_Xs)) + torch.mean(torch.log(1 - D1_f_Xt))
     lD2 = lambda2*(torch.mean(torch.log(D2_f_Xs)) + 0.5*(torch.mean(torch.log(1-D2_g_f_Xs)) + torch.mean(torch.log(1-D2_f_Xt))))
     #print(D2_f_Xt, D2_f_Xs, D2_g_f_Xs, D1_f_Xt, D1_g_f_Xs)
-    print(' D2fxt: {:.6f}, D2fxs: {:.6f},D2gfxs: {:.6f},D1fxt: {:.6f}, D1gfXs: {:.6f}'
-                  .format(D2_f_Xt[0][0], D2_f_Xs[0][0], D2_g_f_Xs[0][0], D1_f_Xt[0][0], D1_g_f_Xs[0][0]))
+    # print(' D2fxt: {:.6f}, D2fxs: {:.6f},D2gfxs: {:.6f},D1fxt: {:.6f}, D1gfXs: {:.6f}'
+    #               .format(D2_f_Xt[0][0], D2_f_Xs[0][0], D2_g_f_Xs[0][0], D1_f_Xt[0][0], D1_g_f_Xs[0][0]))
     return lf, lg, lD1, lD2

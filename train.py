@@ -17,7 +17,7 @@ from FTN import FTNet
 
 from data import MNIST
 
-
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def save_ckpt(loss, net, epoch):
 	torch.save(net.state_dict(), 'epoch{}_{}'.format(epoch, args.num_epoch))
@@ -35,11 +35,11 @@ def train(model, data, optimizer, epoch, args):
 	for i in range(args.epoch_iters):
 
 		train_data = data[i]
-		out = model(train_data[0], train_data[1], train_data[2])
+		out = model(train_data[0].to(device), train_data[1].to(device), train_data[2].to(device))
 
 		optimizer.zero_grad()
 
-		lf, lg, ld1, ld2 = loss(out[0], out[1], out[2], out[3], out[4], train_data[3], out[5], out[6], out[7], out[8], out[9])
+		lf, lg, ld1, ld2 = loss(out[0], out[1], out[2], out[3], out[4], train_data[3].to(device), out[5], out[6], out[7], out[8], out[9])
 
 		total_norm = 0
 		for p in model.parameters():
@@ -78,9 +78,9 @@ def create_optimizer(net, args):
 	return optimizer
 
 def main(args):
-	model = Model()
+	model = Model().to(device)
 	if args.load:
-		model.load_state_dict(torch.load("epoch3_20"))
+		model.load_state_dict(torch.load("epoch12_20"))
 	mnist = MNIST(args.list_domainS, args.list_domainT, args.list_root)
 	optimizer = create_optimizer(model, args)
 	# xs = torch.randn(5, 3, 32 ,32)
@@ -130,7 +130,7 @@ if __name__ == '__main__':
                         help='momentum for sgd, beta1 for adam')
     parser.add_argument('--weight_decay', default=1e-4, type=float,
                         help='weights regularizer')
-    parser.add_argument('--disp_iter', type=int, default=1,
+    parser.add_argument('--disp_iter', type=int, default=50,
                         help='frequency to display')
 
     args = parser.parse_args()
